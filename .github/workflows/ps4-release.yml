@@ -25,18 +25,22 @@ jobs:
         run: |
           set -e
           sudo apt-get update -y
-          # Try to install from apt first
-          if sudo apt-get install -y libssl1.1; then
+          if sudo apt-get install -y libssl1.1 2>/dev/null; then
             echo "libssl1.1 installed via apt"
           else
             echo "libssl1.1 not available via apt; downloading .deb from archive"
-            # Download a matching libssl1.1 package from the Ubuntu archive. Adjust if necessary.
-            wget -q https://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.1/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
-            sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb || sudo apt-get -fy install
+            for url in \
+              "https://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.1/libssl1.1_1.1.1w-1~22.04.1_amd64.deb" \
+              "https://launchpad.net/ubuntu/+archive/primary/+files/libssl1.1_1.1.1w-1~22.04.1_amd64.deb" \
+              "https://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.1/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb"; do
+              if wget -q "$url" -O libssl1.1.deb 2>/dev/null; then
+                sudo dpkg -i libssl1.1.deb && break
+              fi
+            done
+            sudo dpkg -i libssl1.1.deb 2>/dev/null || true
           fi
-          # Verify library is available (non-fatal if not found)
-          ldconfig -p | grep libcrypto.so.1.1 || true
-          
+            ldconfig -p | grep libcrypto.so.1.1 || echo "Warning: libcrypto.so.1.1 not found"
+            
       - name: Install ps4 toolchain
         run: |
           wget https://github.com/PacBrew/pacbrew-pacman/releases/download/pacbrew-release-1.0/pacbrew-pacman-1.0.deb
