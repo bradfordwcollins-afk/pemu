@@ -23,9 +23,11 @@ jobs:
     
       - name: Ensure OpenSSL 1.1 (libssl1.1) is available
         run: |
-          set -e
+          set -euo pipefail
           sudo apt-get update -y
-          if sudo apt-get install -y libssl1.1 2>/dev/null; then
+
+          # Try normal apt install first
+          if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libssl1.1 2>/dev/null; then
             echo "libssl1.1 installed via apt"
           else
             echo "libssl1.1 not available via apt; downloading .deb from archive"
@@ -33,14 +35,28 @@ jobs:
               "https://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.1/libssl1.1_1.1.1w-1~22.04.1_amd64.deb" \
               "https://launchpad.net/ubuntu/+archive/primary/+files/libssl1.1_1.1.1w-1~22.04.1_amd64.deb" \
               "https://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.1/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb"; do
-              if wget -q "$url" -O libssl1.1.deb 2>/dev/null; then
-                sudo dpkg -i libssl1.1.deb && break
+              if wget -q "$url" -O libssl1.1.deb; then
+                sudo dpkg -i libssl1.1.deb || sudo apt-get -f -y install
+                break
               fi
             done
-            sudo dpkg -i libssl1.1.deb 2>/dev/null || true
           fi
+
           sudo ldconfig
-          ldconfig -p | grep libcrypto.so.1.1 && echo "libcrypto.so.1.1 found successfully" || echo "Warning: libcrypto.so.1.1 not found"
+
+          # Verify presence of libcrypto.so.1.1; fail early with helpful diagnostics if missing
+          if ldconfig -p | grep -q "libcrypto.so.1.1"; then
+            echo "libcrypto.so.1.1 found successfully"
+          else
+            echo "ERROR: libcrypto.so.1.1 not found after installation attempts."
+            echo "Current libcrypto entries:"
+            ldconfig -p | grep libcrypto || true
+            echo "ldd on pacman binary (if present):"
+            if [ -x /opt/pacbrew/pacman ]; then
+              ldd /opt/pacbrew/pacman | grep libcrypto || true
+            fi
+            exit 1
+          fi
             
       - name: Install ps4 toolchain
         run: |
