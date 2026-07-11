@@ -47,33 +47,15 @@ jobs:
           make -j"$(nproc)" pfbneo_pkg
           mv *.pkg $GITHUB_WORKSPACE
 
-      - name: Build pgen
-        run: |
-          cd $GITHUB_WORKSPACE/cmake-build
-          make -j"$(nproc)" pgen_pkg
-          mv *.pkg $GITHUB_WORKSPACE
-
-      - name: Build pnes
-        run: |
-          cd $GITHUB_WORKSPACE/cmake-build
-          make -j"$(nproc)" pnes_pkg
-          mv *.pkg $GITHUB_WORKSPACE
-
-      - name: Build psnes
-        run: |
-          cd $GITHUB_WORKSPACE/cmake-build
-          make -j"$(nproc)" psnes_pkg
-          mv *.pkg $GITHUB_WORKSPACE
-
-      - name: Build pgba
-        run: |
-          cd $GITHUB_WORKSPACE/cmake-build
-          make -j"$(nproc)" pgba_pkg
-          mv *.pkg $GITHUB_WORKSPACE
-
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: '*.pkg'
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Force Save PS4 PKG to Summary Page
+        uses: actions/upload-artifact@v4
+        with:
+          name: custom-fbneo-ps4-pkg
+          path: "**/*.pkg"
