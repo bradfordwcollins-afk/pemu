@@ -19,9 +19,9 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt -yq update
-          sudo apt -yq install git build-essential cmake zip libgpgme11 libssl-dev
+          sudo apt -yq install git build-essential cmake zip libgpgme11 libssl-dev libssl1.1
           sudo apt -yq install libssl1.1 || sudo ln -s /usr/lib/x86_64-linux-gnu/libcrypto.so.3 /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1
-
+          
       - name: Install ps4 toolchain
         run: |
           wget https://github.com/PacBrew/pacbrew-pacman/releases/download/pacbrew-release-1.0/pacbrew-pacman-1.0.deb
