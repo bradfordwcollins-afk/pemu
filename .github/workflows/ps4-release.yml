@@ -23,7 +23,7 @@ jobs:
     
       - name: Install libssl1.1 or create symlink
         run: |
-          sudo apt -yq install libssl1.1 || sudo ln -s /usr/lib/x86_64-linux-gnu/libcrypto.so.3 /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1
+          sudo apt -yq install libssl1.1 || (sudo mkdir -p /opt/pacbrew/pacman/lib/x86_64-linux-gnu && sudo ln -s /usr/lib/x86_64-linux-gnu/libcrypto.so.3 /opt/pacbrew/pacman/lib/x86_64-linux-gnu/libcrypto.so.1.1)
           
       - name: Install ps4 toolchain
         run: |
