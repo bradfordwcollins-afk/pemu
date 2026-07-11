@@ -39,7 +39,8 @@ jobs:
             done
             sudo dpkg -i libssl1.1.deb 2>/dev/null || true
           fi
-            ldconfig -p | grep libcrypto.so.1.1 || echo "Warning: libcrypto.so.1.1 not found"
+          sudo ldconfig
+          ldconfig -p | grep libcrypto.so.1.1 && echo "libcrypto.so.1.1 found successfully" || echo "Warning: libcrypto.so.1.1 not found"
             
       - name: Install ps4 toolchain
         run: |
