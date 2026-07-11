@@ -10,7 +10,7 @@ jobs:
 
   build-ps4-release:
     runs-on: ubuntu-latest
-    image: ubuntu:20.04
+    image: ubuntu-20.04
 
     steps:
       - uses: actions/checkout@v2
