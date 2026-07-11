@@ -18,8 +18,8 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          sudo apt -yq update
-          sudo apt -yq install git build-essential cmake zip libgpgme11 libssl1.1
+          apt -yq update
+          apt -yq install git build-essential cmake zip libgpgme11 libssl1.1
 
       - name: Install ps4 toolchain
         run: |
@@ -35,30 +35,6 @@ jobs:
           cmake -G "Unix Makefiles" -DPLATFORM_PS4=ON -DOPTION_EMU=pfbneo -DCMAKE_BUILD_TYPE=Release ..
           make pfbneo.deps
           make -j $(getconf _NPROCESSORS_ONLN) pfbneo_pkg
-          mv *.pkg $GITHUB_WORKSPACE
-
-      - name: Build pgen
-        run: |
-          mkdir cmake-build-pgen && cd cmake-build-pgen
-          export OPENORBIS=/opt/pacbrew/ps4/openorbis
-          cmake -G "Unix Makefiles" -DPLATFORM_PS4=ON -DOPTION_EMU=pgen -DCMAKE_BUILD_TYPE=Release ..
-          make -j $(getconf _NPROCESSORS_ONLN) pgen_pkg
-          mv *.pkg $GITHUB_WORKSPACE
-
-      - name: Build pnes
-        run: |
-          mkdir cmake-build-pnes && cd cmake-build-pnes
-          export OPENORBIS=/opt/pacbrew/ps4/openorbis
-          cmake -G "Unix Makefiles" -DPLATFORM_PS4=ON -DOPTION_EMU=pnes -DCMAKE_BUILD_TYPE=Release ..
-          make -j $(getconf _NPROCESSORS_ONLN) pnes_pkg
-          mv *.pkg $GITHUB_WORKSPACE
-
-      - name: Build psnes
-        run: |
-          mkdir cmake-build-psnes && cd cmake-build-psnes
-          export OPENORBIS=/opt/pacbrew/ps4/openorbis
-          cmake -G "Unix Makefiles" -DPLATFORM_PS4=ON -DOPTION_EMU=psnes -DCMAKE_BUILD_TYPE=Release ..
-          make -j $(getconf _NPROCESSORS_ONLN) psnes_pkg
           mv *.pkg $GITHUB_WORKSPACE
 
       - name: Release
