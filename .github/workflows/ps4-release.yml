@@ -19,7 +19,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt -yq update
-          sudo apt -yq install git build-essential cmake zip libgpgme11 libssl1.1
+          apt -yq install git build-essential cmake zip libgpgme11 libssl-dev
 
       - name: Install ps4 toolchain
         run: |
