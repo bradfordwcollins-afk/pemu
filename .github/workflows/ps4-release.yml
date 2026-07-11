@@ -21,9 +21,21 @@ jobs:
           sudo apt -yq update
           sudo apt -yq install git build-essential cmake zip libgpgme11 libssl-dev
     
-      - name: Install libssl1.1 or create symlink
+      - name: Ensure OpenSSL 1.1 (libssl1.1) is available
         run: |
-          sudo apt -yq install libssl1.1 || (sudo mkdir -p /opt/pacbrew/pacman/lib/x86_64-linux-gnu && sudo ln -s /usr/lib/x86_64-linux-gnu/libcrypto.so.3 /opt/pacbrew/pacman/lib/x86_64-linux-gnu/libcrypto.so.1.1)
+          set -e
+          sudo apt-get update -y
+          # Try to install from apt first
+          if sudo apt-get install -y libssl1.1; then
+            echo "libssl1.1 installed via apt"
+          else
+            echo "libssl1.1 not available via apt; downloading .deb from archive"
+            # Download a matching libssl1.1 package from the Ubuntu archive. Adjust if necessary.
+            wget -q https://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.1/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+            sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb || sudo apt-get -fy install
+          fi
+          # Verify library is available (non-fatal if not found)
+          ldconfig -p | grep libcrypto.so.1.1 || true
           
       - name: Install ps4 toolchain
         run: |
