@@ -10,13 +10,17 @@ jobs:
 
   build-ps4-release:
     runs-on: ubuntu-latest
-    image: ubuntu-20.04
 
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: recursive
-
+      - name: Run BUild inside Unbuntu 20.04 Environment
+        uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: x86_64
+          distro: unbuntu20.04
+          
       - name: Install build dependencies
         run: |
           sudo apt -yq update
