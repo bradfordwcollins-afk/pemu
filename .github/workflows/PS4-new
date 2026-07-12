@@ -81,7 +81,15 @@ jobs:
           echo "OPENORBIS=/opt/openorbis" >> "$GITHUB_ENV"
           echo "Installed OpenOrbis toolchain to /opt/openorbis"
 
-
+      - name: Install ps4 toolchain
+        run: |
+          sudo tee -a /etc/pacman.conf > /dev/null <<EOF
+          [pacbrew]
+          SigLevel = Optional TrustAll
+          Server = https://pacman.mydedibox.fr/pacbrew/packages/
+          EOF
+          sudo pacman -Syu
+          sudo pacman --noconfirm -S ps4-openorbis ps4-openorbis-portlibs
 
       - name: Build pfbneo
         run: |
