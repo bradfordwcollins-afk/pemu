@@ -36,6 +36,15 @@ jobs:
       - name: Configure and Build
         run: |
           export OPENORBIS=/opt/pacbrew/ps4/openorbis
+          
+          # Aggressive toolchain fix for missing GLES2 headers
+          sudo pacman -S --noconfirm ps4-openorbis-portlibs ps4-openorbis-sdl2
+          mkdir -p /opt/pacbrew/ps4/openorbis/usr/include/GLES2
+          # Copy common GLES headers if they exist anywhere in the install
+          find /opt/pacbrew/ps4/openorbis -name "gl2platform.h" -exec cp --parents {} /opt/pacbrew/ps4/openorbis/usr/include/ \; 2>/dev/null || true
+          find /opt/pacbrew/ps4/openorbis -name "gl2.h" -exec cp --parents {} /opt/pacbrew/ps4/openorbis/usr/include/ \; 2>/dev/null || true
+          find /opt/pacbrew/ps4/openorbis -name "gl2ext.h" -exec cp --parents {} /opt/pacbrew/ps4/openorbis/usr/include/ \; 2>/dev/null || true
+          
           mkdir -p cmake-build && cd cmake-build
 
           cmake -G "Unix Makefiles" \
@@ -44,13 +53,10 @@ jobs:
             -DCMAKE_CXX_FLAGS="-Wno-error -Wno-unknown-warning-option -Wno-format-truncation -Wno-restrict -Wno-error=implicit-function-declaration" \
             ..
 
-          # Build dependencies first
           make pfbneo.deps -j2
 
-          # Main build with more parallelism and error continuation
           make -j$(nproc) pfbneo_pkg || echo "=== Build failed - see above ==="
 
-          # Move artifacts
           mv *.pkg ../ 2>/dev/null || true
 
       - name: Upload PS4 PKGs
