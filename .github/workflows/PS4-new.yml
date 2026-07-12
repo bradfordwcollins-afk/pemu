@@ -1,4 +1,4 @@
-name: ps4-release
+name: PS4-New
 
 on:
   push:
