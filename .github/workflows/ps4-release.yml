@@ -26,44 +26,68 @@ jobs:
           set -euo pipefail
           sudo apt-get update -y
 
-          # Try normal apt install first
-          if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libssl1.1 2>/dev/null; then
+          # Try normal apt install first, capture verbose output to help debugging
+          if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libssl1.1 2>&1 | tee /tmp/libssl_install.log; then
             echo "libssl1.1 installed via apt"
           else
-            echo "libssl1.1 not available via apt; downloading .deb from archive"
-            for url in \
-              "https://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.1/libssl1.1_1.1.1w-1~22.04.1_amd64.deb" \
-              "https://launchpad.net/ubuntu/+archive/primary/+files/libssl1.1_1.1.1w-1~22.04.1_amd64.deb" \
-              "https://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.1/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb"; do
-              if wget -q "$url" -O libssl1.1.deb; then
-                sudo dpkg -i libssl1.1.deb || sudo apt-get -f -y install
-                break
-              fi
-            done
+            echo "libssl1.1 not available via apt; attempting jammy .deb (verbose)"
+            wget -O /tmp/libssl1.1.deb \
+              "https://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.1/libssl1.1_1.1.1w-1~22.04.1_amd64.deb" || true
+            if [ -f /tmp/libssl1.1.deb ]; then
+              sudo dpkg -i /tmp/libssl1.1.deb 2>&1 | tee -a /tmp/libssl_install.log || sudo apt-get -f -y install 2>&1 | tee -a /tmp/libssl_install.log
+            else
+              echo "Failed to download libssl1.1 .deb" | tee -a /tmp/libssl_install.log
+            fi
           fi
 
           sudo ldconfig
+          echo "ldconfig entries for libcrypto:"
+          ldconfig -p | grep libcrypto || true
 
-          # Verify presence of libcrypto.so.1.1; fail early with helpful diagnostics if missing
           if ldconfig -p | grep -q "libcrypto.so.1.1"; then
             echo "libcrypto.so.1.1 found successfully"
           else
-            echo "ERROR: libcrypto.so.1.1 not found after installation attempts."
-            echo "Current libcrypto entries:"
-            ldconfig -p | grep libcrypto || true
-            echo "ldd on pacman binary (if present):"
-            if [ -x /opt/pacbrew/pacman ]; then
-              ldd /opt/pacbrew/pacman | grep libcrypto || true
-            fi
+            echo "ERROR: libcrypto.so.1.1 not found after installation attempts. See /tmp/libssl_install.log"
+            sed -n '1,200p' /tmp/libssl_install.log || true
             exit 1
           fi
             
       - name: Install ps4 toolchain
         run: |
-          wget https://github.com/PacBrew/pacbrew-pacman/releases/download/pacbrew-release-1.0/pacbrew-pacman-1.0.deb
-          sudo dpkg -i pacbrew-pacman-1.0.deb
-          sudo pacbrew-pacman -Syu
-          sudo pacbrew-pacman --noconfirm -S ps4-openorbis ps4-openorbis-portlibs
+          set -euo pipefail
+          wget -q https://github.com/PacBrew/pacbrew-pacman/releases/download/pacbrew-release-1.0/pacbrew-pacman-1.0.deb
+          sudo dpkg -i pacbrew-pacman-1.0.deb || (sudo apt-get -f -y install && sudo dpkg -i pacbrew-pacman-1.0.deb)
+
+          # Retry pacbrew sync up to 5 times to handle transient mirror/network failures
+          attempts=5
+          for i in $(seq 1 $attempts); do
+            if sudo pacbrew-pacman -Syu --noconfirm; then
+              echo "pacbrew -Syu succeeded"
+              break
+            fi
+            echo "pacbrew -Syu failed on attempt $i"
+            if [ "$i" -eq "$attempts" ]; then
+              echo "pacbrew -Syu failed after $attempts attempts" && exit 1
+            fi
+            sleep_time=$((i * 10))
+            echo "sleeping $sleep_time seconds before retrying..."
+            sleep $sleep_time
+          done
+
+          # Retry installation of required packages if needed
+          for i in $(seq 1 $attempts); do
+            if sudo pacbrew-pacman --noconfirm -S ps4-openorbis ps4-openorbis-portlibs; then
+              echo "ps4 packages installed"
+              break
+            fi
+            echo "pacbrew package install failed on attempt $i"
+            if [ "$i" -eq "$attempts" ]; then
+              echo "pacbrew package install failed after $attempts attempts" && exit 1
+            fi
+            sleep_time=$((i * 10))
+            echo "sleeping $sleep_time seconds before retrying..."
+            sleep $sleep_time
+          done
 
       - name: Build pfbneo
         run: |
