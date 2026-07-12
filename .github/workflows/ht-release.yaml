@@ -46,11 +46,14 @@ jobs:
             -DCMAKE_CXX_FLAGS="-Wno-error -Wno-unknown-warning-option -Wno-format-truncation -Wno-restrict" \
             ..
 
-      - name: Build pfbneo PKG
+      - name: Build pfbneo
         run: |
-          cd cmake-build
-          make pfbneo.deps -j2
-          make -j"$(nproc)" pfbneo_pkg || echo "=== Build failed - see above ==="
+          mkdir cmake-build-pfbneo && cd cmake-build-pfbneo
+          export OPENORBIS=/opt/pacbrew/ps4/openorbis
+          cmake -G "Unix Makefiles" -DPLATFORM_PS4=ON -DOPTION_EMU=pfbneo -DCMAKE_BUILD_TYPE=Release ..
+          make pfbneo.deps
+          make -j $(getconf _NPROCESSORS_ONLN) pfbneo_pkg
+          mv *.pkg $GITHUB_WORKSPACE
 
       - name: Upload PS4 PKGs
         if: always()
