@@ -12,7 +12,7 @@
 	url = https://github.com/Cpasjuste/libcross2d.git
 [submodule "cores/fbneo"]
 	path = cores/fbneo
-	url = http://github.com/bradfordwcollins-afk/pemu.git
+	url = http://github.com/bradfordwcollins-afk/FBNeo.git
 [submodule "cores/genesis"]
 	path = cores/genesis
 	url = https://github.com/ekeeke/Genesis-Plus-GX.git
