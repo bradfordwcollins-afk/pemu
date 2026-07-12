@@ -1,0 +1,100 @@
+name: ps4-release
+
+on:
+  push:
+    tags:
+      - "v*.*"
+  workflow_dispatch:
+
+jobs:
+
+  build-ps4-release:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt -yq update
+          sudo apt -yq install git build-essential cmake zip libgpgme11 libssl-dev curl wget
+    
+      - name: Ensure OpenSSL 1.1 (libssl1.1) is available
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+
+          # Try normal apt install first, capture verbose output to help debugging
+          if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libssl1.1 2>&1 | tee /tmp/libssl_install.log; then
+            echo "libssl1.1 installed via apt"
+          else
+            echo "libssl1.1 not available via apt; attempting jammy .deb (verbose)"
+            wget -O /tmp/libssl1.1.deb \
+              "https://archive.ubuntu.com/ubuntu/pool/main/o/openssl1.1/libssl1.1_1.1.1w-1~22.04.1_amd64.deb" || true
+            if [ -f /tmp/libssl1.1.deb ]; then
+              sudo dpkg -i /tmp/libssl1.1.deb 2>&1 | tee -a /tmp/libssl_install.log || sudo apt-get -f -y install 2>&1 | tee -a /tmp/libssl_install.log
+            else
+              echo "Failed to download libssl1.1 .deb" | tee -a /tmp/libssl_install.log
+            fi
+          fi
+
+          sudo ldconfig
+          echo "ldconfig entries for libcrypto:"
+          ldconfig -p | grep libcrypto || true
+
+          if ldconfig -p | grep -q "libcrypto.so.1.1"; then
+            echo "libcrypto.so.1.1 found successfully"
+          else
+            echo "ERROR: libcrypto.so.1.1 not found after installation attempts. See /tmp/libssl_install.log"
+            sed -n '1,200p' /tmp/libssl_install.log || true
+            exit 1
+          fi
+
+      - name: Install OpenOrbis toolchain from GitHub releases (fallback to avoid pacbrew mirrors)
+        run: |
+          set -euo pipefail
+          echo "Fetching latest OpenOrbis toolchain release metadata..."
+          ASSET_URL=$(curl -s https://api.github.com/repos/OpenOrbis/OpenOrbis-PS4-Toolchain/releases/latest \
+            | grep 'browser_download_url' | grep -i linux || true)
+          if [ -z "$ASSET_URL" ]; then
+            echo "No linux asset found in OpenOrbis releases; falling back to pacbrew (will retry)"
+            exit 2
+          fi
+          ASSET_URL=$(echo "$ASSET_URL" | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "Downloading asset: $ASSET_URL"
+          wget -q -O /tmp/openorbis.tar.gz "$ASSET_URL"
+          sudo mkdir -p /opt
+          # extract to /opt and normalize to /opt/openorbis
+          TMP_DIR=$(mktemp -d)
+          tar -C "$TMP_DIR" -xzf /tmp/openorbis.tar.gz
+          TOPDIR=$(tar -tzf /tmp/openorbis.tar.gz | head -n1 | cut -f1 -d"/")
+          if [ -d "$TMP_DIR/$TOPDIR" ]; then
+            sudo mv "$TMP_DIR/$TOPDIR" /opt/openorbis
+          else
+            # if archive doesn't have topdir, move contents
+            sudo mkdir -p /opt/openorbis
+            sudo cp -a "$TMP_DIR"/* /opt/openorbis || true
+          fi
+          rm -rf "$TMP_DIR"
+          echo "OPENORBIS=/opt/openorbis" >> "$GITHUB_ENV"
+          echo "Installed OpenOrbis toolchain to /opt/openorbis"
+
+
+
+      - name: Build pfbneo
+        run: |
+          mkdir cmake-build-pfbneo && cd cmake-build-pfbneo
+          export OPENORBIS=${OPENORBIS:-/opt/openorbis}
+          cmake -G "Unix Makefiles" -DPLATFORM_PS4=ON -DOPTION_EMU=pfbneo -DCMAKE_BUILD_TYPE=Release ..
+          make pfbneo.deps
+          make -j $(getconf _NPROCESSORS_ONLN) pfbneo_pkg
+          mv *.pkg $GITHUB_WORKSPACE
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: '*.pkg'
+          token: ${{ secrets.RELEASE_TOKEN }}
