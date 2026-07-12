@@ -52,35 +52,6 @@ jobs:
             exit 1
           fi
 
-      - name: Install OpenOrbis toolchain from GitHub releases (fallback to avoid pacbrew mirrors)
-        run: |
-          set -euo pipefail
-          echo "Fetching latest OpenOrbis toolchain release metadata..."
-          ASSET_URL=$(curl -s https://api.github.com/repos/OpenOrbis/OpenOrbis-PS4-Toolchain/releases/latest \
-            | grep 'browser_download_url' | grep -i linux || true)
-          if [ -z "$ASSET_URL" ]; then
-            echo "No linux asset found in OpenOrbis releases; falling back to pacbrew (will retry)"
-            exit 2
-          fi
-          ASSET_URL=$(echo "$ASSET_URL" | sed -E 's/.*"([^"]+)".*/\1/')
-          echo "Downloading asset: $ASSET_URL"
-          wget -q -O /tmp/openorbis.tar.gz "$ASSET_URL"
-          sudo mkdir -p /opt
-          # extract to /opt and normalize to /opt/openorbis
-          TMP_DIR=$(mktemp -d)
-          tar -C "$TMP_DIR" -xzf /tmp/openorbis.tar.gz
-          TOPDIR=$(tar -tzf /tmp/openorbis.tar.gz | head -n1 | cut -f1 -d"/")
-          if [ -d "$TMP_DIR/$TOPDIR" ]; then
-            sudo mv "$TMP_DIR/$TOPDIR" /opt/openorbis
-          else
-            # if archive doesn't have topdir, move contents
-            sudo mkdir -p /opt/openorbis
-            sudo cp -a "$TMP_DIR"/* /opt/openorbis || true
-          fi
-          rm -rf "$TMP_DIR"
-          echo "OPENORBIS=/opt/openorbis" >> "$GITHUB_ENV"
-          echo "Installed OpenOrbis toolchain to /opt/openorbis"
-
       - name: Install ps4 toolchain
         run: |
           sudo tee -a /etc/pacman.conf > /dev/null <<EOF
