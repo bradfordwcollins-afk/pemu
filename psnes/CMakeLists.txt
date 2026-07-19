@@ -106,7 +106,7 @@ if (PLATFORM_VITA)
     list(APPEND SNES9X_LDFLAGS ScePower_stub)
 elseif (PLATFORM_PS4)
     set(PS4_PKG_TITLE "Ken Griffey Jr. Baseball")
-    set(PS4_PKG_TITLE_ID "PSNES-KGB")
+    set(PS4_PKG_TITLE_ID "PSNE00002")
     set(PS4_PKG_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
 elseif (PLATFORM_SWITCH)
     #####################
