@@ -57,10 +57,7 @@ int main(int argc, char **argv) {
     scePowerSetGpuClockFrequency(222);
     scePowerSetGpuXbarClockFrequency(166);
 #endif
-    // Auto-boot NBA Super Maximum Hangtime
-    if (fileExists("nbamhtx.zip")) {
-        loadRom("nbamhtx.zip");  // adjust function name if needed
-    }
+    
     // need custom io for some devices
     auto io = new PFBAIo();
     // load configuration
