@@ -69,12 +69,18 @@ static int DoLibInit()                    // Do Init of Burn library driver
 }
 
 // Catch calls to BurnLoadRom() once the emulation has started;
+//Autoboot NBA Super Max HT
 // Intialise the zip module before forwarding the call, and exit cleanly.
 static int DrvLoadRom(unsigned char *Dest, int *pnWrote, int i) {
 
     int nRet;
 
     BzipOpen(false);
+
+    // AUTO-BOOT NBA Super Maximum Hangtime
+    if (strcmp(BurnDrvGetTextA(DRV_NAME), "nbamhtx") == 0 || i == 0) {  // adjust condition if needed
+        BurnLoadRom(Dest, "nbamhtx.zip", 0);  // or use the correct index
+    }
 
     if ((nRet = BurnExtLoadRom(Dest, pnWrote, i)) != 0) {
         char *pszFilename;
@@ -86,6 +92,7 @@ static int DrvLoadRom(unsigned char *Dest, int *pnWrote, int i) {
                 pszFilename, BurnDrvGetTextA(DRV_NAME));
         printf("DrvLoadRom: %s\n", szText);
         ui->getUiMessageBox()->show("ERROR", szText, "OK");
+        
     }
 
     BzipClose();
