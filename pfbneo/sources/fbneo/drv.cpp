@@ -79,7 +79,7 @@ static int DrvLoadRom(unsigned char *Dest, int *pnWrote, int i) {
     BzipOpen(false);
 
     // AUTO-BOOT NBA Super Maximum Hangtime
-    BurnDrvSetZipName("nbamhtx.zip", 0);
+    //BurnDrvSetZipName("nbamhtx.zip", 0);
 
     if ((nRet = BurnExtLoadRom(Dest, pnWrote, i)) != 0) {
         char *pszFilename;
