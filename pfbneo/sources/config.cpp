@@ -14,6 +14,7 @@ PFBAConfig::PFBAConfig(c2d::Io *io, int version) : Config(io, version) {
 
 #ifndef __PFBN_NO_CONSOLES__
     // add fba default roms paths
+    roms_paths.emplace_back(io->getDataPath() + "arcade/");
     roms_paths.emplace_back(io->getDataPath() + "channelf/");
     roms_paths.emplace_back(io->getDataPath() + "coleco/");
     roms_paths.emplace_back(io->getDataPath() + "fds/");
