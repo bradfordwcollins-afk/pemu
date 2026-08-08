@@ -4,7 +4,7 @@
 
 #include "c2dui.h"
 
-Config::Config(c2d::Io *io, int ver, const std::string &defaultRomsPath) {
+Config::Config(c2d::Io *io, int ver, const std::string &defaultRomsPath = "roms2/") {
 
     dataPath = io->getDataPath();
     configPath = dataPath + "config.cfg";
