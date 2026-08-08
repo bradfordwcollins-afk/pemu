@@ -7,7 +7,7 @@
 Config::Config(c2d::Io *io, int ver, const std::string &defaultRomsPath) {
 
     dataPath = io->getDataPath();
-    configPath = dataPath + "config.cfg";
+    configPath = dataPath + "config2.cfg";
     version = ver;
 
     printf("Config(%s, v%i)\n", configPath.c_str(), ver);
