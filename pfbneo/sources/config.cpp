@@ -9,7 +9,7 @@
 using namespace c2d;
 using namespace c2dui;
 
-PFBAConfig::PFBAConfig(c2d::Io *io, int version) : Config(io, version) {
+PFBAConfig::PFBAConfig(c2d::Io *io, int version) : Config(io, version, "arcade/") {
     printf("PFBAConfig(%s, v%i)\n", getConfigPath().c_str(), version);
 
 #ifndef __PFBN_NO_CONSOLES__
