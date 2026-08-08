@@ -29,7 +29,7 @@ namespace c2dui {
 
     public:
 
-        Config(c2d::Io *io, int version, const std::string &defaultRomsPath = "roms/");
+        Config(c2d::Io *io, int version, const std::string &defaultRomsPath = "roms2/");
 
         virtual ~Config() = default;
 
