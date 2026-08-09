@@ -16,7 +16,7 @@ namespace c2d {
         }
 #elif __PS4__
         std::string getDataPath() override {
-            return "/data/psnes2/";
+            return "/data/psnes3/";
         }
 #endif
     };
