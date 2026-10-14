@@ -1,0 +1,223 @@
+diff -ruN -x .git a/pfbneo/sources/config.cpp b/pfbneo/sources/config.cpp
+--- a/pfbneo/sources/config.cpp	2026-08-09 13:45:41.000000000 +0000
++++ b/pfbneo/sources/config.cpp	2026-10-14 18:52:52.663631207 +0000
+@@ -73,6 +73,11 @@
+          "DECK_V6", "DEVKIT"},
+         0, Option::Id::ROM_NEOBIOS, Option::Flags::STRING);
+     get(Option::Id::ROM_NEOBIOS)->setInfo("YOU NEED TO RESTART EMULATION AFTER CHANGING THIS OPTION");
++    // dipswitch: cabinet type (only affects games having a "2 Players" / "4 Players" dipswitch)
++    add(Option::Id::ROM_NEOBIOS, "CABINET_PLAYERS",
++        {"DEFAULT", "2 PLAYERS", "4 PLAYERS"}, 0, Option::Id::ROM_DIP_CABINET, Option::Flags::STRING);
++    get(Option::Id::ROM_DIP_CABINET)->setInfo(
++            "ONLY FOR GAMES WITH A 2/4 PLAYERS DIPSWITCH - RESTART EMULATION AFTER CHANGING THIS OPTION");
+ #ifdef __VITA__
+     // do not use unibios as default on vita for cyclone asm compatibility
+     get(Option::Id::ROM_NEOBIOS)->setIndex(4);
+diff -ruN -x .git a/pfbneo/sources/fbneo/drv.cpp b/pfbneo/sources/fbneo/drv.cpp
+--- a/pfbneo/sources/fbneo/drv.cpp	2026-08-09 13:45:41.000000000 +0000
++++ b/pfbneo/sources/fbneo/drv.cpp	2026-10-14 18:52:52.664710990 +0000
+@@ -117,6 +117,16 @@
+     InputInit();
+     SetControllerInfo();
+ 
++    // dipswitch: cabinet type (2/4 players), applied after default dipswitches are set
++    Option *cabinetOpt = ui->getConfig()->get(Option::Id::ROM_DIP_CABINET, true);
++    if (cabinetOpt) {
++        if (cabinetOpt->getValueString() == "2 PLAYERS") {
++            InpDIPSWSetCabinetPlayers(2);
++        } else if (cabinetOpt->getValueString() == "4 PLAYERS") {
++            InpDIPSWSetCabinetPlayers(4);
++        }
++    }
++
+     printf("DrvInit: DoLibInit()\n");
+     if (DoLibInit()) {                // Init the Burn library's driver
+         //char szTemp[512];
+diff -ruN -x .git a/pfbneo/sources/fbneo/retro_input_wrapper.cpp b/pfbneo/sources/fbneo/retro_input_wrapper.cpp
+--- a/pfbneo/sources/fbneo/retro_input_wrapper.cpp	2026-08-09 13:45:41.000000000 +0000
++++ b/pfbneo/sources/fbneo/retro_input_wrapper.cpp	2026-10-14 18:52:52.664303917 +0000
+@@ -2,6 +2,7 @@
+ // Created by cpasjuste on 24/02/2022.
+ //
+ 
++#include <algorithm>
+ #include "retro_input.h"
+ 
+ unsigned nGameType = 0;
+@@ -61,3 +62,46 @@
+         i++;
+     }
+ }
++
++bool InpDIPSWSetCabinetPlayers(int players) {
++    if (players != 2 && players != 4) {
++        return false;
++    }
++
++    InpDIPSWGetOffset();
++
++    // dipswitch option text we are looking for, ie: "4 players"
++    std::string wanted = std::to_string(players) + " player";
++    bool found = false;
++    BurnDIPInfo bdi;
++
++    for (int i = 0; BurnDrvGetDIPInfo(&bdi, i) == 0; i++) {
++        // skip offset (0xF0), group name (0xFE) and default (0xFF) entries
++        if (bdi.nFlags == 0xF0 || bdi.nFlags == 0xFE || bdi.nFlags == 0xFF || bdi.szText == nullptr) {
++            continue;
++        }
++
++        std::string text = bdi.szText;
++        std::transform(text.begin(), text.end(), text.begin(), ::tolower);
++        if (text.compare(0, wanted.size(), wanted) != 0) {
++            continue;
++        }
++
++        int index = bdi.nInput + nDIPOffset;
++        if (index < 0 || (UINT32) index >= nGameInpCount) {
++            continue;
++        }
++
++        struct GameInp *pgi = GameInp + index;
++        pgi->Input.Constant.nConst = (pgi->Input.Constant.nConst & ~bdi.nMask) | (bdi.nSetting & bdi.nMask);
++        printf("InpDIPSWSetCabinetPlayers: set \"%s\" (input: %i, mask: 0x%02x, setting: 0x%02x)\n",
++               bdi.szText, index, bdi.nMask, bdi.nSetting);
++        found = true;
++    }
++
++    if (!found) {
++        printf("InpDIPSWSetCabinetPlayers: no %i players dipswitch found for this game\n", players);
++    }
++
++    return found;
++}
+diff -ruN -x .git a/pfbneo/sources/fbneo/retro_input_wrapper.h b/pfbneo/sources/fbneo/retro_input_wrapper.h
+--- a/pfbneo/sources/fbneo/retro_input_wrapper.h	2026-08-09 13:45:41.000000000 +0000
++++ b/pfbneo/sources/fbneo/retro_input_wrapper.h	2026-10-14 18:52:52.663955255 +0000
+@@ -19,6 +19,9 @@
+ extern struct GameInp *pgi_diag;
+ extern UINT8 *diag_input;
+ 
++// set the "N players" cabinet dipswitch (players: 2 or 4), returns true if a matching dipswitch was found
++bool InpDIPSWSetCabinetPlayers(int players);
++
+ int16_t input_cb(unsigned port, unsigned device, unsigned index, unsigned id);
+ 
+ void poll_cb();
+diff -ruN -x .git a/ui/c2dui_config.cpp b/ui/c2dui_config.cpp
+--- a/ui/c2dui_config.cpp	2026-08-09 13:45:41.000000000 +0000
++++ b/ui/c2dui_config.cpp	2026-10-14 18:14:14.743730682 +0000
+@@ -66,6 +66,11 @@
+     get()->at(get()->size() - 1).setInfo("YOU NEED TO RESTART THE APPLICATION AFTER CHANGING THIS OPTION");
+ 
+     append("VIDEO_SNAP_DELAY", 5, Option::Id::GUI_VIDEO_SNAP_DELAY, Option::Flags::INTEGER);
++    // autoload last played rom at startup
++    append("AUTOLOAD_LAST_ROM", {"OFF", "ON"}, 0, Option::Id::GUI_AUTOLOAD_ROM, Option::Flags::BOOLEAN);
++    get()->at(get()->size() - 1).setInfo("AUTOMATICALLY START THE LAST PLAYED ROM AT STARTUP");
++    // last played rom path (hidden, saved in config)
++    append("LAST_ROM", {""}, 0, Option::Id::GUI_LAST_ROM, Option::Flags::STRING | Option::Flags::HIDDEN);
+ 
+     /////////////////////////////////////////////////
+     /// default rom config
+diff -ruN -x .git a/ui/c2dui_option.h b/ui/c2dui_option.h
+--- a/ui/c2dui_option.h	2026-08-09 13:45:41.000000000 +0000
++++ b/ui/c2dui_option.h	2026-10-14 18:52:52.663152593 +0000
+@@ -45,6 +45,8 @@
+             GUI_FULLSCREEN,
+             GUI_SKIN,
+             GUI_VIDEO_SNAP_DELAY,
++            GUI_AUTOLOAD_ROM,
++            GUI_LAST_ROM,
+             MENU_ROM_OPTIONS,
+             ROM_SCALING,
+             ROM_SCALING_MODE,
+@@ -58,6 +60,7 @@
+             ROM_SHOW_FPS,
+             ROM_FRAMESKIP,
+             ROM_NEOBIOS,
++            ROM_DIP_CABINET,
+             ROM_PSNES_HIGH_RES,
+             ROM_PSNES_CHEATS,
+             ROM_PSNES_BLOCK_VRAM,
+diff -ruN -x .git a/ui/c2dui_ui_emu.cpp b/ui/c2dui_ui_emu.cpp
+--- a/ui/c2dui_ui_emu.cpp	2026-08-09 13:45:41.000000000 +0000
++++ b/ui/c2dui_ui_emu.cpp	2026-10-14 18:14:14.744145943 +0000
+@@ -56,6 +56,13 @@
+     ui->getUiStatusBox()->show("TIPS: PRESS MENU1 + MENU2 BUTTONS FOR IN GAME MENU...");
+     currentGame = game;
+ 
++    // remember last played rom (used by "autoload last rom" option)
++    Option *lastRom = ui->getConfig()->get(Option::Id::GUI_LAST_ROM);
++    if (lastRom && game.id > 0 && lastRom->getValueString() != game.path) {
++        lastRom->setValueString(game.path);
++        ui->getConfig()->save(ss_api::Game());
++    }
++
+     // set fps text on top
+     getFpsText()->setLayer(2);
+ 
+diff -ruN -x .git a/ui/c2dui_ui_main.cpp b/ui/c2dui_ui_main.cpp
+--- a/ui/c2dui_ui_main.cpp	2026-08-09 13:45:41.000000000 +0000
++++ b/ui/c2dui_ui_main.cpp	2026-10-14 18:14:14.745296598 +0000
+@@ -91,6 +91,9 @@
+     updateInputMapping(false);
+     getInput()->setRepeatDelay(INPUT_DELAY);
+ 
++    // autoload last rom on first update, once the ui is fully built
++    autoLoadPending = true;
++
+ #if 0
+     scrapper = new Scrapper(this);
+ #endif
+@@ -100,7 +103,31 @@
+     skin = s;
+ }
+ 
++void UiMain::autoLoadRom() {
++    Option *autoLoad = config->get(Option::Id::GUI_AUTOLOAD_ROM);
++    Option *lastRom = config->get(Option::Id::GUI_LAST_ROM);
++    if (!autoLoad || !autoLoad->getValueBool() || !lastRom || lastRom->getValueString().empty()) {
++        return;
++    }
++
++    ss_api::Game game = uiRomList->getRomList()->gameList->findGameByPath(lastRom->getValueString());
++    if (game.path.empty() || !game.available) {
++        printf("UiMain::autoLoadRom: rom not found (%s)\n", lastRom->getValueString().c_str());
++        uiStatusBox->show("AUTOLOAD: LAST ROM NOT FOUND");
++        return;
++    }
++
++    printf("UiMain::autoLoadRom: %s\n", game.path.c_str());
++    config->load(game);
++    uiEmu->load(game);
++}
++
+ void UiMain::onUpdate() {
++    if (autoLoadPending) {
++        autoLoadPending = false;
++        autoLoadRom();
++    }
++
+     unsigned int buttons = getInput()->getButtons();
+     if (buttons & Input::Button::Quit) {
+         done = true;
+diff -ruN -x .git a/ui/c2dui_ui_main.h b/ui/c2dui_ui_main.h
+--- a/ui/c2dui_ui_main.h	2026-08-09 13:45:41.000000000 +0000
++++ b/ui/c2dui_ui_main.h	2026-10-14 18:14:14.744774499 +0000
+@@ -43,6 +43,8 @@
+ 
+         void updateInputMapping(bool isRomCfg);
+ 
++        void autoLoadRom();
++
+         Skin *getSkin();
+ 
+         Config *getConfig();
+@@ -83,6 +85,7 @@
+         UiStatusBox *uiStatusBox = nullptr;
+         c2d::C2DClock timer;
+         unsigned int oldKeys = 0;
++        bool autoLoadPending = false;
+     };
+ }
+ 
