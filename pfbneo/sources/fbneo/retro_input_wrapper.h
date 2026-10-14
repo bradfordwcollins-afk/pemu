@@ -19,6 +19,9 @@ extern struct GameInp *pgi_reset;
 extern struct GameInp *pgi_diag;
 extern UINT8 *diag_input;
 
+// set the "N players" cabinet dipswitch (players: 2 or 4), returns true if a matching dipswitch was found
+bool InpDIPSWSetCabinetPlayers(int players);
+
 int16_t input_cb(unsigned port, unsigned device, unsigned index, unsigned id);
 
 void poll_cb();

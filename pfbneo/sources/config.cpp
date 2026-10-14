@@ -73,6 +73,11 @@ PFBAConfig::PFBAConfig(c2d::Io *io, int version) : Config(io, version, "arcade/"
          "DECK_V6", "DEVKIT"},
         0, Option::Id::ROM_NEOBIOS, Option::Flags::STRING);
     get(Option::Id::ROM_NEOBIOS)->setInfo("YOU NEED TO RESTART EMULATION AFTER CHANGING THIS OPTION");
+    // dipswitch: cabinet type (only affects games having a "2 Players" / "4 Players" dipswitch)
+    add(Option::Id::ROM_NEOBIOS, "CABINET_PLAYERS",
+        {"DEFAULT", "2 PLAYERS", "4 PLAYERS"}, 0, Option::Id::ROM_DIP_CABINET, Option::Flags::STRING);
+    get(Option::Id::ROM_DIP_CABINET)->setInfo(
+            "ONLY FOR GAMES WITH A 2/4 PLAYERS DIPSWITCH - RESTART EMULATION AFTER CHANGING THIS OPTION");
 #ifdef __VITA__
     // do not use unibios as default on vita for cyclone asm compatibility
     get(Option::Id::ROM_NEOBIOS)->setIndex(4);

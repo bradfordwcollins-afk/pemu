@@ -66,6 +66,11 @@ Config::Config(c2d::Io *io, int ver, const std::string &defaultRomsPath) {
     get()->at(get()->size() - 1).setInfo("YOU NEED TO RESTART THE APPLICATION AFTER CHANGING THIS OPTION");
 
     append("VIDEO_SNAP_DELAY", 5, Option::Id::GUI_VIDEO_SNAP_DELAY, Option::Flags::INTEGER);
+    // autoload last played rom at startup
+    append("AUTOLOAD_LAST_ROM", {"OFF", "ON"}, 0, Option::Id::GUI_AUTOLOAD_ROM, Option::Flags::BOOLEAN);
+    get()->at(get()->size() - 1).setInfo("AUTOMATICALLY START THE LAST PLAYED ROM AT STARTUP");
+    // last played rom path (hidden, saved in config)
+    append("LAST_ROM", {""}, 0, Option::Id::GUI_LAST_ROM, Option::Flags::STRING | Option::Flags::HIDDEN);
 
     /////////////////////////////////////////////////
     /// default rom config

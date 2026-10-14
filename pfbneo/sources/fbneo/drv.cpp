@@ -117,6 +117,16 @@ int DrvInit(int nDrvNum, bool bRestore) {
     InputInit();
     SetControllerInfo();
 
+    // dipswitch: cabinet type (2/4 players), applied after default dipswitches are set
+    Option *cabinetOpt = ui->getConfig()->get(Option::Id::ROM_DIP_CABINET, true);
+    if (cabinetOpt) {
+        if (cabinetOpt->getValueString() == "2 PLAYERS") {
+            InpDIPSWSetCabinetPlayers(2);
+        } else if (cabinetOpt->getValueString() == "4 PLAYERS") {
+            InpDIPSWSetCabinetPlayers(4);
+        }
+    }
+
     printf("DrvInit: DoLibInit()\n");
     if (DoLibInit()) {                // Init the Burn library's driver
         //char szTemp[512];

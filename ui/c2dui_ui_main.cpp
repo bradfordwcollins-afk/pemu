@@ -91,6 +91,9 @@ void UiMain::init(UIRomList *_uiRomList, UiMenu *_uiMenu,
     updateInputMapping(false);
     getInput()->setRepeatDelay(INPUT_DELAY);
 
+    // autoload last rom on first update, once the ui is fully built
+    autoLoadPending = true;
+
 #if 0
     scrapper = new Scrapper(this);
 #endif
@@ -100,7 +103,31 @@ void UiMain::setSkin(Skin *s) {
     skin = s;
 }
 
+void UiMain::autoLoadRom() {
+    Option *autoLoad = config->get(Option::Id::GUI_AUTOLOAD_ROM);
+    Option *lastRom = config->get(Option::Id::GUI_LAST_ROM);
+    if (!autoLoad || !autoLoad->getValueBool() || !lastRom || lastRom->getValueString().empty()) {
+        return;
+    }
+
+    ss_api::Game game = uiRomList->getRomList()->gameList->findGameByPath(lastRom->getValueString());
+    if (game.path.empty() || !game.available) {
+        printf("UiMain::autoLoadRom: rom not found (%s)\n", lastRom->getValueString().c_str());
+        uiStatusBox->show("AUTOLOAD: LAST ROM NOT FOUND");
+        return;
+    }
+
+    printf("UiMain::autoLoadRom: %s\n", game.path.c_str());
+    config->load(game);
+    uiEmu->load(game);
+}
+
 void UiMain::onUpdate() {
+    if (autoLoadPending) {
+        autoLoadPending = false;
+        autoLoadRom();
+    }
+
     unsigned int buttons = getInput()->getButtons();
     if (buttons & Input::Button::Quit) {
         done = true;

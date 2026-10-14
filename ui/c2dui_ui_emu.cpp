@@ -56,6 +56,13 @@ int UiEmu::load(const Game &game) {
     ui->getUiStatusBox()->show("TIPS: PRESS MENU1 + MENU2 BUTTONS FOR IN GAME MENU...");
     currentGame = game;
 
+    // remember last played rom (used by "autoload last rom" option)
+    Option *lastRom = ui->getConfig()->get(Option::Id::GUI_LAST_ROM);
+    if (lastRom && game.id > 0 && lastRom->getValueString() != game.path) {
+        lastRom->setValueString(game.path);
+        ui->getConfig()->save(ss_api::Game());
+    }
+
     // set fps text on top
     getFpsText()->setLayer(2);
 

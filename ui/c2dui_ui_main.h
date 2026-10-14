@@ -43,6 +43,8 @@ namespace c2dui {
 
         void updateInputMapping(bool isRomCfg);
 
+        void autoLoadRom();
+
         Skin *getSkin();
 
         Config *getConfig();
@@ -83,6 +85,7 @@ namespace c2dui {
         UiStatusBox *uiStatusBox = nullptr;
         c2d::C2DClock timer;
         unsigned int oldKeys = 0;
+        bool autoLoadPending = false;
     };
 }
 
