@@ -83,6 +83,8 @@ bool InpDIPSWSetCabinetPlayers(int players) {
 
         std::string text = bdi.szText;
         std::transform(text.begin(), text.end(), text.begin(), ::tolower);
+        // some drivers use "4-player", others "4 Players"
+        std::replace(text.begin(), text.end(), '-', ' ');
         if (text.compare(0, wanted.size(), wanted) != 0) {
             continue;
         }
