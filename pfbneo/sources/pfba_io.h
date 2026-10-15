@@ -16,7 +16,7 @@ namespace c2d {
         }
 #elif __PS4__
         std::string getDataPath() override {
-            return "/data/pfba2/";
+            return "/data/pfba/";
         }
 #ifndef NDEBUG
         std::string getRomFsPath() override {
