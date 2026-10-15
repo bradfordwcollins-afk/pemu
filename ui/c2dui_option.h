@@ -47,6 +47,7 @@ namespace c2dui {
             GUI_VIDEO_SNAP_DELAY,
             GUI_AUTOLOAD_ROM,
             GUI_LAST_ROM,
+            GUI_AUTOLOAD_GAME,
             MENU_ROM_OPTIONS,
             ROM_SCALING,
             ROM_SCALING_MODE,

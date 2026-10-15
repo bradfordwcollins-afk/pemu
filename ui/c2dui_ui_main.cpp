@@ -105,15 +105,35 @@ void UiMain::setSkin(Skin *s) {
 
 void UiMain::autoLoadRom() {
     Option *autoLoad = config->get(Option::Id::GUI_AUTOLOAD_ROM);
+    Option *autoLoadGame = config->get(Option::Id::GUI_AUTOLOAD_GAME);
     Option *lastRom = config->get(Option::Id::GUI_LAST_ROM);
-    if (!autoLoad || !autoLoad->getValueBool() || !lastRom || lastRom->getValueString().empty()) {
+    if (!autoLoad) {
         return;
     }
 
-    ss_api::Game game = uiRomList->getRomList()->gameList->findGameByPath(lastRom->getValueString());
+    std::string mode = autoLoad->getValueString();
+    if (mode.empty() || mode == "OFF") {
+        return;
+    }
+
+    RomList *romList = uiRomList->getRomList();
+    ss_api::Game game;
+    std::string what;
+
+    if (mode == "SELECTED GAME" && autoLoadGame && autoLoadGame->getValueString() != "NONE") {
+        what = autoLoadGame->getValueString();
+        game = romList->findGameByAutoLoadName(what);
+    } else if (lastRom && !lastRom->getValueString().empty()) {
+        // "LAST PLAYED" (or older "ON" value)
+        what = lastRom->getValueString();
+        game = romList->findGameByAutoLoadId(what);
+    } else {
+        return;
+    }
+
     if (game.path.empty() || !game.available) {
-        printf("UiMain::autoLoadRom: rom not found (%s)\n", lastRom->getValueString().c_str());
-        uiStatusBox->show("AUTOLOAD: LAST ROM NOT FOUND");
+        printf("UiMain::autoLoadRom: rom not found (%s)\n", what.c_str());
+        uiStatusBox->show("AUTOLOAD: ROM NOT FOUND");
         return;
     }
 

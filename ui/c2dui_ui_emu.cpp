@@ -58,8 +58,8 @@ int UiEmu::load(const Game &game) {
 
     // remember last played rom (used by "autoload last rom" option)
     Option *lastRom = ui->getConfig()->get(Option::Id::GUI_LAST_ROM);
-    if (lastRom && game.id > 0 && lastRom->getValueString() != game.path) {
-        lastRom->setValueString(game.path);
+    if (lastRom && game.id > 0 && lastRom->getValueString() != RomList::getAutoLoadId(game)) {
+        lastRom->setValueString(RomList::getAutoLoadId(game));
         ui->getConfig()->save(ss_api::Game());
     }
 

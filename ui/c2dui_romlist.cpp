@@ -132,6 +132,21 @@ void RomList::build(bool addArcadeSystem) {
             Option::Id::GUI_FILTER_ROTATION, "FILTER_RESOLUTION",
             gameList->resolutions, 0, Option::Id::GUI_FILTER_RESOLUTION, Option::Flags::STRING | Option::Flags::HIDDEN);
 
+    // autoload game list (available games only)
+    std::vector<std::string> autoLoadNames;
+    for (const auto &game: gameList->games) {
+        if (game.available) {
+            autoLoadNames.push_back(getAutoLoadName(game));
+        }
+    }
+    std::sort(autoLoadNames.begin(), autoLoadNames.end());
+    autoLoadNames.insert(autoLoadNames.begin(), "NONE");
+    ui->getConfig()->add(
+            Option::Id::GUI_AUTOLOAD_ROM, "AUTOLOAD_GAME",
+            autoLoadNames, 0, Option::Id::GUI_AUTOLOAD_GAME, Option::Flags::STRING);
+    ui->getConfig()->get(Option::Id::GUI_AUTOLOAD_GAME)->setInfo(
+            "GAME TO START AT STARTUP WHEN AUTOLOAD_ROM IS SET TO \"SELECTED GAME\"");
+
     // we need to reload config to update new options we just added
     ui->getConfig()->reset();
     ui->getConfig()->load();
@@ -152,6 +167,52 @@ void RomList::build(bool addArcadeSystem) {
     // UI
     // remove ui widgets
     delete (rect);
+}
+
+std::string RomList::getAutoLoadName(const ss_api::Game &game) {
+    return game.name + " [" + c2d::Utility::removeExt(game.path) + "]";
+}
+
+std::string RomList::getAutoLoadId(const ss_api::Game &game) {
+    return std::to_string(game.system.id) + ":" + game.path;
+}
+
+ss_api::Game RomList::findGameByAutoLoadId(const std::string &id) {
+    // id is "systemId:path" (or only "path" for older configs)
+    int systemId = -1;
+    std::string path = id;
+    size_t pos = id.find(':');
+    if (pos != std::string::npos && pos > 0 && id.find_first_not_of("0123456789") == pos) {
+        systemId = std::stoi(id.substr(0, pos));
+        path = id.substr(pos + 1);
+    }
+
+    std::string pathNoExt = c2d::Utility::removeExt(path);
+    std::transform(pathNoExt.begin(), pathNoExt.end(), pathNoExt.begin(), ::tolower);
+
+    ss_api::Game best;
+    for (const auto &game: gameList->games) {
+        if (!game.available) continue;
+        std::string gamePath = c2d::Utility::removeExt(game.path);
+        std::transform(gamePath.begin(), gamePath.end(), gamePath.begin(), ::tolower);
+        if (gamePath != pathNoExt) continue;
+        // exact match (path and system)
+        if (game.path == path && (systemId < 0 || game.system.id == systemId)) {
+            return game;
+        }
+        if (best.path.empty()) best = game;
+    }
+
+    return best;
+}
+
+ss_api::Game RomList::findGameByAutoLoadName(const std::string &name) {
+    for (const auto &game: gameList->games) {
+        if (game.available && getAutoLoadName(game) == name) {
+            return game;
+        }
+    }
+    return ss_api::Game();
 }
 
 void RomList::addFav(const Game &game) {

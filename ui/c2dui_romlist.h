@@ -6,6 +6,7 @@
 #define C2DUI_ROMLIST_H
 
 #include <vector>
+#include <string>
 
 namespace c2dui {
 
@@ -26,6 +27,17 @@ namespace c2dui {
         void removeFav(const ss_api::Game &game);
 
         void setLoadingText(const char *format, ...);
+
+        // autoload helpers
+        static std::string getAutoLoadName(const ss_api::Game &game);
+
+        static std::string getAutoLoadId(const ss_api::Game &game);
+
+        // find an available game from an id returned by getAutoLoadId ("systemId:path" or "path")
+        ss_api::Game findGameByAutoLoadId(const std::string &id);
+
+        // find an available game from a name returned by getAutoLoadName
+        ss_api::Game findGameByAutoLoadName(const std::string &name);
 
         UiMain *ui;
         c2d::RectangleShape *rect;

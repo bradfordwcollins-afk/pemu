@@ -67,8 +67,9 @@ Config::Config(c2d::Io *io, int ver, const std::string &defaultRomsPath) {
 
     append("VIDEO_SNAP_DELAY", 5, Option::Id::GUI_VIDEO_SNAP_DELAY, Option::Flags::INTEGER);
     // autoload last played rom at startup
-    append("AUTOLOAD_LAST_ROM", {"OFF", "ON"}, 0, Option::Id::GUI_AUTOLOAD_ROM, Option::Flags::BOOLEAN);
-    get()->at(get()->size() - 1).setInfo("AUTOMATICALLY START THE LAST PLAYED ROM AT STARTUP");
+    append("AUTOLOAD_ROM", {"OFF", "LAST PLAYED", "SELECTED GAME"}, 0, Option::Id::GUI_AUTOLOAD_ROM,
+           Option::Flags::STRING);
+    get()->at(get()->size() - 1).setInfo("AUTOMATICALLY START A ROM AT STARTUP (SELECT THE GAME IN AUTOLOAD_GAME)");
     // last played rom path (hidden, saved in config)
     append("LAST_ROM", {""}, 0, Option::Id::GUI_LAST_ROM, Option::Flags::STRING | Option::Flags::HIDDEN);
 
