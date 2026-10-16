@@ -138,8 +138,20 @@ void UiMain::autoLoadRom() {
     }
 
     printf("UiMain::autoLoadRom: %s\n", game.path.c_str());
+
+    // go straight to the game: hide the rom list so it's never shown while loading
+    bool blurWasVisible = uiRomList->getBlur()->isVisible();
+    uiRomList->setVisibility(Visibility::Hidden);
+    uiRomList->getBlur()->setVisibility(Visibility::Hidden);
+
     config->load(game);
-    uiEmu->load(game);
+    if (uiEmu->load(game) != 0) {
+        // load failed, give the rom list back to the user
+        uiRomList->setVisibility(Visibility::Visible);
+        if (blurWasVisible) {
+            uiRomList->getBlur()->setVisibility(Visibility::Visible);
+        }
+    }
 }
 
 void UiMain::onUpdate() {
