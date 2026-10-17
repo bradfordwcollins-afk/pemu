@@ -45,6 +45,9 @@ namespace c2dui {
 
         void autoLoadRom();
 
+        // true while a rom is being autoloaded at startup (used to hide the loading bar)
+        bool isAutoLoading() const { return autoLoading; }
+
         Skin *getSkin();
 
         Config *getConfig();
@@ -86,6 +89,7 @@ namespace c2dui {
         c2d::C2DClock timer;
         unsigned int oldKeys = 0;
         bool autoLoadPending = false;
+        bool autoLoading = false;
     };
 }
 

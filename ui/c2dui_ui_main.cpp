@@ -145,7 +145,10 @@ void UiMain::autoLoadRom() {
     uiRomList->getBlur()->setVisibility(Visibility::Hidden);
 
     config->load(game);
-    if (uiEmu->load(game) != 0) {
+    autoLoading = true;
+    int loadRes = uiEmu->load(game);
+    autoLoading = false;
+    if (loadRes != 0) {
         // load failed, give the rom list back to the user
         uiRomList->setVisibility(Visibility::Visible);
         if (blurWasVisible) {
