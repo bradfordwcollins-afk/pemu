@@ -46,6 +46,19 @@ RomList::RomList(UiMain *_ui, const std::string &emuVersion, const std::vector<s
     rect->add(version);
 
     ui->add(rect);
+
+    // hide the title/loading screen when a rom will be autoloaded at startup
+    // (AUTOLOAD_GAME is added later, so for "SELECTED GAME" we can't check it yet)
+    Option *autoLoad = ui->getConfig()->get(Option::Id::GUI_AUTOLOAD_ROM);
+    Option *lastRom = ui->getConfig()->get(Option::Id::GUI_LAST_ROM);
+    if (autoLoad) {
+        std::string mode = autoLoad->getValueString();
+        bool hasRom = mode == "SELECTED GAME" || (lastRom && !lastRom->getValueString().empty());
+        if (mode != "OFF" && !mode.empty() && hasRom) {
+            rect->setVisibility(Visibility::Hidden);
+        }
+    }
+
     ui->flip();
     // UI
 
