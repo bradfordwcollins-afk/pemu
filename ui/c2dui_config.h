@@ -33,6 +33,9 @@ namespace c2dui {
 
         virtual ~Config() = default;
 
+        // called when a rom config is loaded, allows adding per-game options (ie: dipswitches)
+        virtual void loadRomOptions(const ss_api::Game &game) {}
+
         void load(const ss_api::Game &game = ss_api::Game());
 
         void save(const ss_api::Game &game = ss_api::Game());
@@ -74,6 +77,8 @@ namespace c2dui {
 
     protected:
         std::vector<std::string> roms_paths;
+
+        std::vector<Option> *getRomOptionsList() { return &options_rom; }
 
     private:
         std::vector<Option> options_gui;

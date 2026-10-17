@@ -158,6 +158,12 @@ void Config::load(const ss_api::Game &game) {
         path += ".cfg";
     }
 
+    if (isRomCfg) {
+        // start from default rom options, then add per-game options (ie: dipswitches)
+        reset();
+        loadRomOptions(game);
+    }
+
     printf("Config::load: %s ...", path.c_str());
 
     if (config_read_file(&cfg, path.c_str()) == CONFIG_TRUE) {
@@ -227,7 +233,10 @@ void Config::load(const ss_api::Game &game) {
     } else {
         printf("NOK: file not found\n");
         // reset default rom options for other roms usage
-        reset();
+        // (rom config options were already reset, with per-game options, above)
+        if (!isRomCfg) {
+            reset();
+        }
         // no need to save default rom config
         if (!isRomCfg) {
             save(ss_api::Game());
