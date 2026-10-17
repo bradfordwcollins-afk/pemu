@@ -6,6 +6,8 @@
 #define PFBA_UIEMU_H
 
 #include <string>
+#include <vector>
+#include <cstdint>
 
 class PFBAUiEmu : public c2dui::UiEmu {
 
@@ -30,6 +32,14 @@ private:
     bool audio_sync = false;
 
     int frameskip = 0;
+
+    // game speed (extra emulated frames + audio resampling)
+    float gameSpeed = 1.0f;
+    float speedAcc = 0;
+    double speedReadPos = 0;
+    int audioChannels = 2;
+    std::vector<int16_t> speedFifo;
+    std::vector<int16_t> speedOut;
 
     C2DClock clock;
 };

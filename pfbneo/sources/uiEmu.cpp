@@ -215,8 +215,8 @@ int PFBAUiEmu::load(const ss_api::Game &game) {
         nBurnFPS = 6000;
     }
 
-    // game speed (100 to 120 %): the driver is initialised with a lower audio rate, and the
-    // audio device plays it back at the normal rate, so the emulation runs faster (audio pitch included)
+    // game speed (100 to 120 %): extra emulation frames are run between screen updates (see onUpdate),
+    // the audio is resampled to keep playing in real time (audio pitch increases with speed)
     int speedPercent = std::atoi(ui->getConfig()->get(Option::Id::ROM_GAME_SPEED, true)->getValueString().c_str());
     if (speedPercent < 100 || speedPercent > 120) {
         speedPercent = 100;
@@ -231,8 +231,8 @@ int PFBAUiEmu::load(const ss_api::Game &game) {
     printf("PFBAUiEmu::load: initialize driver...\n");
     // some drivers require audio buffer to be allocated for DrvInit, add a "dummy" one for now...
     auto *aud = new Audio(audio_freq);
-    nBurnSoundRate = (int) ((float) aud->getSampleRate() / speed);
-    nBurnSoundLen = (int) ((float) aud->getSamples() / speed);
+    nBurnSoundRate = aud->getSampleRate();
+    nBurnSoundLen = aud->getSamples();
     pBurnSoundOut = (INT16 *) malloc(aud->getSamplesSize());
     if (DrvInit((int) nBurnDrvActive, false) != 0) {
         printf("\nPFBAUiEmu::load: driver initialisation failed\n");
@@ -254,15 +254,29 @@ int PFBAUiEmu::load(const ss_api::Game &game) {
     ///////////
     // AUDIO
     //////////
-    addAudio(audio_freq, Audio::toSamples(audio_freq, ((float) nBurnFPS / 100.0f) * speed));
+    addAudio(audio_freq, Audio::toSamples(audio_freq, (float) nBurnFPS / 100.0f));
     if (audio->isAvailable()) {
-        nBurnSoundRate = (int) ((float) audio->getSampleRate() / speed);
+        nBurnSoundRate = audio->getSampleRate();
         nBurnSoundLen = audio->getSamples();
         pBurnSoundOut = (INT16 *) malloc(audio->getSamplesSize());
     }
-    // when speeding up the game, audio must drive the emulation speed
-    audio_sync = !bForce60Hz || speedPercent > 100;
-    targetFps = ((float) nBurnFPS / 100) * speed;
+    audio_sync = !bForce60Hz;
+    targetFps = (float) nBurnFPS / 100;
+
+    // game speed state
+    gameSpeed = speed;
+    speedAcc = 0;
+    speedReadPos = 0;
+    speedFifo.clear();
+    speedOut.clear();
+    audioChannels = 2;
+    if (audio->isAvailable() && audio->getSamples() > 0) {
+        int ch = (int) (audio->getSamplesSize() / ((size_t) audio->getSamples() * sizeof(INT16)));
+        audioChannels = ch > 0 ? ch : 2;
+        // small latency buffer so we never run out of samples when 2 frames are emulated at once
+        speedFifo.assign((size_t) audio->getSamples() * audioChannels * 2, 0);
+        speedOut.assign((size_t) audio->getSamples() * audioChannels, 0);
+    }
     printf("PFBAUiEmu::load: FORCE_60HZ: %i, AUDIO_SYNC: %i, FPS: %f (BURNFPS: %f)\n",
            bForce60Hz, audio_sync, (float) nBurnFPS / 100.0f, targetFps);
     ///////////
@@ -416,24 +430,77 @@ void PFBAUiEmu::onUpdate() {
     int skip = 0;
 #endif
 
-    pBurnDraw = nullptr;
-    frameskip++;
-
-    if (frameskip > skip) {
-        video->getTexture()->lock(&pBurnDraw, &nBurnPitch);
-        nFramesRendered++;
+    // game speed: emulate more than one frame per screen update from time to time (only the last one is drawn)
+    int frames = 1;
+    if (gameSpeed > 1.0f) {
+        speedAcc += gameSpeed;
+        frames = (int) speedAcc;
+        speedAcc -= (float) frames;
+        if (frames < 1) frames = 1;
     }
 
-    BurnDrvFrame();
-    nCurrentFrame++;
+    for (int f = 0; f < frames; f++) {
+        pBurnDraw = nullptr;
+        bool render = false;
 
-    if (frameskip > skip) {
-        video->getTexture()->unlock();
-        frameskip = 0;
+        if (f == frames - 1) {
+            frameskip++;
+            if (frameskip > skip) {
+                video->getTexture()->lock(&pBurnDraw, &nBurnPitch);
+                nFramesRendered++;
+                render = true;
+            }
+        }
+
+        BurnDrvFrame();
+        nCurrentFrame++;
+
+        if (render) {
+            video->getTexture()->unlock();
+            frameskip = 0;
+        }
+
+        if (gameSpeed > 1.0f && audio && audio->isAvailable()) {
+            // queue the audio of this frame
+            size_t n = (size_t) nBurnSoundLen * audioChannels;
+            speedFifo.insert(speedFifo.end(), pBurnSoundOut, pBurnSoundOut + n);
+        }
     }
 
     if (audio && audio->isAvailable()) {
-        audio->play(pBurnSoundOut, audio->getSamples(), audio_sync);
+        if (gameSpeed > 1.0f) {
+            // play queued audio, resampled so we consume "gameSpeed" times more audio than we play
+            int outFrames = audio->getSamples();
+            int ch = audioChannels;
+            size_t avail = speedFifo.size() / (size_t) ch;
+            for (int i = 0; i < outFrames; i++) {
+                double pos = speedReadPos + (double) i * gameSpeed;
+                size_t idx = (size_t) pos;
+                float frac = (float) (pos - (double) idx);
+                if (avail < 2) {
+                    for (int c = 0; c < ch; c++) speedOut[(size_t) i * ch + c] = 0;
+                    continue;
+                }
+                if (idx + 1 >= avail) {
+                    idx = avail - 2;
+                    frac = 1.0f;
+                }
+                for (int c = 0; c < ch; c++) {
+                    float a = speedFifo[idx * ch + c];
+                    float b = speedFifo[(idx + 1) * ch + c];
+                    speedOut[(size_t) i * ch + c] = (INT16) (a + (b - a) * frac);
+                }
+            }
+            speedReadPos += (double) outFrames * gameSpeed;
+            size_t drop = (size_t) speedReadPos;
+            if (drop > avail) drop = avail;
+            speedFifo.erase(speedFifo.begin(), speedFifo.begin() + (long) (drop * ch));
+            speedReadPos -= (double) drop;
+            if (speedReadPos < 0 || speedReadPos > 4) speedReadPos = 0;
+            audio->play(speedOut.data(), outFrames, audio_sync);
+        } else {
+            audio->play(pBurnSoundOut, audio->getSamples(), audio_sync);
+        }
     }
 
     UiEmu::onUpdate();
