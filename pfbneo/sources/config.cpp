@@ -78,6 +78,12 @@ PFBAConfig::PFBAConfig(c2d::Io *io, int version) : Config(io, version, "arcade/"
         {"DEFAULT", "2 PLAYERS", "4 PLAYERS"}, 0, Option::Id::ROM_DIP_CABINET, Option::Flags::STRING);
     get(Option::Id::ROM_DIP_CABINET)->setInfo(
             "ONLY FOR GAMES WITH A 2/4 PLAYERS DIPSWITCH - RESTART EMULATION AFTER CHANGING THIS OPTION");
+    // game speed (applied when the game loads)
+    add(Option::Id::ROM_DIP_CABINET, "GAME_SPEED",
+        {"100%", "102%", "104%", "106%", "108%", "110%", "112%", "114%", "116%", "118%", "120%"},
+        0, Option::Id::ROM_GAME_SPEED, Option::Flags::STRING);
+    get(Option::Id::ROM_GAME_SPEED)->setInfo(
+            "RESTART EMULATION AFTER CHANGING THIS OPTION - AUDIO PITCH WILL INCREASE WITH SPEED");
 #ifdef __VITA__
     // do not use unibios as default on vita for cyclone asm compatibility
     get(Option::Id::ROM_NEOBIOS)->setIndex(4);

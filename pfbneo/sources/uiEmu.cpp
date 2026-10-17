@@ -167,6 +167,14 @@ int PFBAUiEmu::load(const ss_api::Game &game) {
         nBurnFPS = 6000;
     }
 
+    // game speed (100 to 120 %): the driver is initialised with a lower audio rate, and the
+    // audio device plays it back at the normal rate, so the emulation runs faster (audio pitch included)
+    int speedPercent = std::atoi(ui->getConfig()->get(Option::Id::ROM_GAME_SPEED, true)->getValueString().c_str());
+    if (speedPercent < 100 || speedPercent > 120) {
+        speedPercent = 100;
+    }
+    float speed = (float) speedPercent / 100.0f;
+
     ///////////////
     // FBA DRIVER
     ///////////////
@@ -175,8 +183,8 @@ int PFBAUiEmu::load(const ss_api::Game &game) {
     printf("PFBAUiEmu::load: initialize driver...\n");
     // some drivers require audio buffer to be allocated for DrvInit, add a "dummy" one for now...
     auto *aud = new Audio(audio_freq);
-    nBurnSoundRate = aud->getSampleRate();
-    nBurnSoundLen = aud->getSamples();
+    nBurnSoundRate = (int) ((float) aud->getSampleRate() / speed);
+    nBurnSoundLen = (int) ((float) aud->getSamples() / speed);
     pBurnSoundOut = (INT16 *) malloc(aud->getSamplesSize());
     if (DrvInit((int) nBurnDrvActive, false) != 0) {
         printf("\nPFBAUiEmu::load: driver initialisation failed\n");
@@ -198,14 +206,15 @@ int PFBAUiEmu::load(const ss_api::Game &game) {
     ///////////
     // AUDIO
     //////////
-    addAudio(audio_freq, Audio::toSamples(audio_freq, (float) nBurnFPS / 100.0f));
+    addAudio(audio_freq, Audio::toSamples(audio_freq, ((float) nBurnFPS / 100.0f) * speed));
     if (audio->isAvailable()) {
-        nBurnSoundRate = audio->getSampleRate();
+        nBurnSoundRate = (int) ((float) audio->getSampleRate() / speed);
         nBurnSoundLen = audio->getSamples();
         pBurnSoundOut = (INT16 *) malloc(audio->getSamplesSize());
     }
-    audio_sync = !bForce60Hz;
-    targetFps = (float) nBurnFPS / 100;
+    // when speeding up the game, audio must drive the emulation speed
+    audio_sync = !bForce60Hz || speedPercent > 100;
+    targetFps = ((float) nBurnFPS / 100) * speed;
     printf("PFBAUiEmu::load: FORCE_60HZ: %i, AUDIO_SYNC: %i, FPS: %f (BURNFPS: %f)\n",
            bForce60Hz, audio_sync, (float) nBurnFPS / 100.0f, targetFps);
     ///////////
