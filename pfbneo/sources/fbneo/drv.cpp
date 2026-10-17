@@ -174,7 +174,10 @@ static double nProgressPosBurn = 0;
 
 static int ProgressCreate() {
     nProgressPosBurn = 0;
-    ui->getUiProgressBox()->setVisibility(c2d::Visibility::Visible);
+    // no loading bar when autoloading a rom at startup
+    if (!ui->isAutoLoading()) {
+        ui->getUiProgressBox()->setVisibility(c2d::Visibility::Visible);
+    }
     ui->getUiProgressBox()->setLayer(1000);
     return 0;
 }
