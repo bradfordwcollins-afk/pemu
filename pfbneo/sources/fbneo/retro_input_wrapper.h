@@ -19,6 +19,29 @@ extern struct GameInp *pgi_reset;
 extern struct GameInp *pgi_diag;
 extern UINT8 *diag_input;
 
+// full dipswitch menu support
+#define PFBA_DIP_MENU_ID 999
+#define PFBA_DIP_BASE    1000
+
+struct DipOptionInfo {
+    std::string text;
+    int input = 0;
+    int mask = 0;
+    int setting = 0;
+};
+
+struct DipGroupInfo {
+    std::string name;
+    std::vector<DipOptionInfo> options;
+    int defaultIndex = -1; // -1: driver default setting doesn't match any option
+};
+
+// dipswitch groups of the active driver (nBurnDrvActive)
+std::vector<DipGroupInfo> InpDIPSWGetGroups();
+
+// write a dipswitch option value to the game input state
+bool InpDIPSWApplyOption(const DipOptionInfo &option);
+
 // set the "N players" cabinet dipswitch (players: 2 or 4), returns true if a matching dipswitch was found
 bool InpDIPSWSetCabinetPlayers(int players);
 

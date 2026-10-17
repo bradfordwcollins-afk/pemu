@@ -107,3 +107,80 @@ bool InpDIPSWSetCabinetPlayers(int players) {
 
     return found;
 }
+
+std::vector<DipGroupInfo> InpDIPSWGetGroups() {
+    std::vector<DipGroupInfo> groups;
+    BurnDIPInfo bdi;
+
+    // default settings (0xff entries), per dip input
+    struct DefaultInfo {
+        int input, mask, setting;
+    };
+    std::vector<DefaultInfo> defaults;
+    for (int i = 0; BurnDrvGetDIPInfo(&bdi, i) == 0; i++) {
+        if (bdi.nFlags == 0xFF) {
+            defaults.push_back({bdi.nInput, bdi.nMask, bdi.nSetting});
+        }
+    }
+
+    for (int i = 0; BurnDrvGetDIPInfo(&bdi, i) == 0; i++) {
+        // 0xfe: dipswitch group, "nSetting" following entries are the group options
+        if (bdi.nFlags != 0xFE) {
+            continue;
+        }
+
+        DipGroupInfo group;
+        group.name = bdi.szText ? bdi.szText : "";
+        int count = bdi.nSetting;
+
+        for (int l = 1; l <= count; l++) {
+            BurnDIPInfo opt;
+            if (BurnDrvGetDIPInfo(&opt, i + l) != 0) {
+                break;
+            }
+            if (opt.nFlags == 0xFE || opt.nFlags == 0xFF || opt.nFlags == 0xF0) {
+                break;
+            }
+            DipOptionInfo info;
+            info.text = opt.szText ? opt.szText : "";
+            info.input = opt.nInput;
+            info.mask = opt.nMask;
+            info.setting = opt.nSetting;
+            group.options.push_back(info);
+        }
+        i += count;
+
+        if (group.name.empty() || group.options.size() < 2) {
+            continue;
+        }
+
+        // find the option matching the driver default
+        for (const auto &def: defaults) {
+            if (def.input != group.options[0].input) continue;
+            for (size_t o = 0; o < group.options.size(); o++) {
+                if ((def.setting & group.options[o].mask) == (group.options[o].setting & group.options[o].mask)) {
+                    group.defaultIndex = (int) o;
+                    break;
+                }
+            }
+            break;
+        }
+
+        groups.push_back(group);
+    }
+
+    return groups;
+}
+
+bool InpDIPSWApplyOption(const DipOptionInfo &option) {
+    InpDIPSWGetOffset();
+
+    int index = option.input + nDIPOffset;
+    if (index < 0 || (UINT32) index >= nGameInpCount) {
+        return false;
+    }
+
+    struct GameInp *pgi = GameInp + index;
+    pgi->Input.Constant.nConst = (pgi->Input.Constant.nConst & ~option.mask) | (option.setting & option.mask);
+    return true;
+}

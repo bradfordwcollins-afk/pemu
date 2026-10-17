@@ -117,6 +117,18 @@ int DrvInit(int nDrvNum, bool bRestore) {
     InputInit();
     SetControllerInfo();
 
+    // dipswitches from the ROM menu "DIPSWITCHES" section, applied after default dipswitches are set
+    std::vector<DipGroupInfo> dipGroups = InpDIPSWGetGroups();
+    for (size_t g = 0; g < dipGroups.size(); g++) {
+        Option *dipOpt = ui->getConfig()->get(PFBA_DIP_BASE + (int) g, true);
+        if (!dipOpt) continue;
+        // a "DEFAULT" entry is added at index 0 when the driver default doesn't match any option
+        int optionIndex = dipOpt->getIndex() - (dipGroups[g].defaultIndex < 0 ? 1 : 0);
+        if (optionIndex < 0 || optionIndex >= (int) dipGroups[g].options.size()) continue;
+        InpDIPSWApplyOption(dipGroups[g].options[optionIndex]);
+        printf("DIP: %s = %s\n", dipGroups[g].name.c_str(), dipGroups[g].options[optionIndex].text.c_str());
+    }
+
     // dipswitch: cabinet type (2/4 players), applied after default dipswitches are set
     Option *cabinetOpt = ui->getConfig()->get(Option::Id::ROM_DIP_CABINET, true);
     if (cabinetOpt) {
