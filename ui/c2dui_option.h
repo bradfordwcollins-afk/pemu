@@ -62,6 +62,7 @@ namespace c2dui {
             ROM_FRAMESKIP,
             ROM_NEOBIOS,
             ROM_DIP_CABINET,
+            ROM_GAME_SPEED,
             ROM_PSNES_HIGH_RES,
             ROM_PSNES_CHEATS,
             ROM_PSNES_BLOCK_VRAM,
