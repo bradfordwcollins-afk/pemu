@@ -3,8 +3,13 @@
 //
 
 #include <string>
+#include <set>
 #include "c2dui.h"
 #include "config.h"
+#include "burner.h"
+#include "retro_input_wrapper.h"
+
+int PFBAGetDriverIndex(const ss_api::Game &game);
 
 using namespace c2d;
 using namespace c2dui;
@@ -102,4 +107,79 @@ PFBAConfig::PFBAConfig(c2d::Io *io, int version) : Config(io, version, "arcade/"
     // "c2dui_romlist" will also reload config, but we need new roms paths
     reset();
     load();
+}
+
+// make a valid and readable config key from a dipswitch group name (ie: "Coinage Source" -> "DIP_COINAGE_SOURCE")
+static std::string getDipOptionName(const std::string &groupName, std::set<std::string> &used) {
+    std::string name = "DIP_";
+    bool lastUnderscore = true;
+    for (char c: groupName) {
+        if (isalnum((unsigned char) c)) {
+            name += (char) toupper((unsigned char) c);
+            lastUnderscore = false;
+        } else if (!lastUnderscore) {
+            name += '_';
+            lastUnderscore = true;
+        }
+    }
+    while (!name.empty() && name.back() == '_') name.pop_back();
+    if (name.size() > 28) name.resize(28);
+    if (name == "DIP") name = "DIP_OPTION";
+
+    std::string unique = name;
+    for (int n = 2; used.count(unique); n++) {
+        unique = name + "_" + std::to_string(n);
+    }
+    used.insert(unique);
+
+    return unique;
+}
+
+void PFBAConfig::loadRomOptions(const ss_api::Game &game) {
+    int driver = PFBAGetDriverIndex(game);
+    if (driver < 0) {
+        return;
+    }
+
+    // dipswitch info is read from the driver, the active driver must be restored (game may be running)
+    UINT32 previous = nBurnDrvActive;
+    nBurnDrvActive = driver;
+    std::vector<DipGroupInfo> groups = InpDIPSWGetGroups();
+    nBurnDrvActive = previous;
+
+    if (groups.empty()) {
+        return;
+    }
+
+    std::vector<Option> dips;
+    dips.emplace_back("DIPSWITCHES", std::vector<std::string>{"DIPSWITCHES"}, 0,
+                      PFBA_DIP_MENU_ID, Option::Flags::MENU);
+
+    std::set<std::string> usedNames;
+    for (size_t g = 0; g < groups.size(); g++) {
+        std::vector<std::string> values;
+        // if the driver default doesn't match any option, add a "DEFAULT" entry (does not change the dipswitch)
+        if (groups[g].defaultIndex < 0) {
+            values.emplace_back("DEFAULT");
+        }
+        for (const auto &opt: groups[g].options) {
+            values.push_back(opt.text);
+        }
+        int defaultIndex = groups[g].defaultIndex < 0 ? 0 : groups[g].defaultIndex;
+
+        dips.emplace_back(getDipOptionName(groups[g].name, usedNames), values, defaultIndex,
+                          PFBA_DIP_BASE + (int) g, Option::Flags::STRING);
+        dips.back().setInfo("RESTART EMULATION AFTER CHANGING THIS OPTION");
+    }
+
+    // insert the dipswitch menu before the joypad menu
+    std::vector<Option> *opts = getRomOptionsList();
+    auto pos = opts->end();
+    for (auto it = opts->begin(); it != opts->end(); ++it) {
+        if (it->getId() == Option::Id::MENU_JOYPAD) {
+            pos = it;
+            break;
+        }
+    }
+    opts->insert(pos, dips.begin(), dips.end());
 }
